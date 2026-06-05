@@ -14,7 +14,7 @@ class MainActivity : AppCompatActivity() {
 
         for (i in 1..200) {
             val url = "https://picsum.photos/500/500?random=$i"
-            mockDataList.add(FeedItem(i, "这是第 $i 条抖音分享内容，欢迎学习 Android", url))
+            mockDataList.add(FeedItem(i, "这是第 $i 条抖音分享内容", url))
         }
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
@@ -23,5 +23,16 @@ class MainActivity : AppCompatActivity() {
         recyclerView.layoutManager = layoutManager
 
         recyclerView.adapter = FeedAdapter(mockDataList)
+
+
+        val swipeRefreshLayout = findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(R.id.swipeRefreshLayout)
+        swipeRefreshLayout.setOnRefreshListener {
+            // 模拟真实网络请求耗时 1.5 秒
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                swipeRefreshLayout.isRefreshing = false
+                mockDataList.shuffle()
+                recyclerView.adapter?.notifyDataSetChanged()
+            }, 1500)
+        }
     }
 }

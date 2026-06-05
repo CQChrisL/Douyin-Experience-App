@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 
 class FeedAdapter(private val items: List<FeedItem>) :
     RecyclerView.Adapter<FeedAdapter.MyViewHolder>() {
@@ -25,11 +26,17 @@ class FeedAdapter(private val items: List<FeedItem>) :
         val currentItem = items[position]
         holder.tvDescription.text = currentItem.title
 
-        holder.ivCover.setImageResource(android.R.color.darker_gray)
-
         if (currentItem.imageUrl.isNotEmpty()) {
-            ImageLoader.loadImage(holder.itemView.context, currentItem.imageUrl, holder.ivCover)
+            Glide.with(holder.itemView.context)
+                .load(currentItem.imageUrl)
+                .placeholder(android.R.color.darker_gray)
+                .centerCrop()
+                .into(holder.ivCover)
+        } else {
+            holder.ivCover.setImageResource(android.R.color.darker_gray)
         }
+
+        androidx.core.view.ViewCompat.setTransitionName(holder.ivCover, currentItem.imageUrl)
 
         holder.itemView.setOnClickListener {
             val context = holder.itemView.context
@@ -37,7 +44,19 @@ class FeedAdapter(private val items: List<FeedItem>) :
                 putExtra("EXTRA_IMAGE_URL", currentItem.imageUrl)
                 putExtra("EXTRA_TITLE", currentItem.title)
             }
-            context.startActivity(intent)
+            
+            val activity = context as? android.app.Activity
+            if (activity != null) {
+                // 告诉系统：把当前的 holder.ivCover 平滑过渡到下一个页面中名为 currentItem.imageUrl 的控件上
+                val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                    activity,
+                    holder.ivCover,
+                    currentItem.imageUrl 
+                )
+                context.startActivity(intent, options.toBundle())
+            } else {
+                context.startActivity(intent)
+            }
         }
     }
 
