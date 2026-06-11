@@ -13,6 +13,9 @@ class DetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+
         setContentView(R.layout.activity_detail)
 
         val ivDetailCover = findViewById<ImageView>(R.id.ivDetailCover)
@@ -42,37 +45,16 @@ class DetailActivity : AppCompatActivity() {
         if (imageUrl.isNotEmpty()) {
             androidx.core.view.ViewCompat.setTransitionName(ivDetailCover, imageUrl)
             
-            supportPostponeEnterTransition()
-            
-            window.decorView.postDelayed({
-                supportStartPostponedEnterTransition()
-            }, 100)
-            
             Glide.with(this)
                 .load(imageUrl)
                 .dontAnimate() 
-                .listener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
-                    override fun onLoadFailed(
-                        e: com.bumptech.glide.load.engine.GlideException?,
-                        model: Any?,
-                        target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>,
-                        isFirstResource: Boolean
-                    ): Boolean {
-                        supportStartPostponedEnterTransition()
-                        return false
-                    }
-
-                    override fun onResourceReady(
-                        resource: android.graphics.drawable.Drawable,
-                        model: Any,
-                        target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
-                        dataSource: com.bumptech.glide.load.DataSource,
-                        isFirstResource: Boolean
-                    ): Boolean {
-                        supportStartPostponedEnterTransition()
-                        return false
-                    }
-                })
+                // 强制开启全磁盘缓存复用
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                .thumbnail(
+                    Glide.with(this)
+                        .load(imageUrl)
+                        .centerCrop()
+                )
                 .into(ivDetailCover)
         }
     }

@@ -1,38 +1,63 @@
 package com.example.douyinexperiencesection
 
 import android.os.Bundle
+import android.view.View
+import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.StaggeredGridLayoutManager
+import androidx.fragment.app.Fragment
+import androidx.viewpager2.adapter.FragmentStateAdapter
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
 
 class MainActivity : AppCompatActivity() {
+
+    private val categories = listOf("推荐", "经验", "同城")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        
         setContentView(R.layout.activity_main)
 
-        val mockDataList = mutableListOf<FeedItem>()
+        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
 
-        for (i in 1..200) {
-            val url = "https://picsum.photos/500/500?random=$i"
-            mockDataList.add(FeedItem(i, "这是第 $i 条抖音分享内容", url))
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(tabLayout) { view, windowInsets ->
+            val insets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            view.setPadding(0, insets.top, 0, 0)
+            windowInsets
+        }
+        
+        val viewPager = findViewById<ViewPager2>(R.id.viewPager)
+        val splashOverlay = findViewById<FrameLayout>(R.id.splashOverlay)
+
+        // 配置 ViewPager2 的适配器，管理多个 Fragment
+        viewPager.adapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int {
+                return categories.size
+            }
+
+            override fun createFragment(position: Int): Fragment {
+                return FeedFragment.newInstance(categories[position])
+            }
         }
 
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
+        viewPager.setCurrentItem(1, false)
 
-        val layoutManager = StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
-        recyclerView.layoutManager = layoutManager
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = categories[position]
+        }.attach()
 
-        recyclerView.adapter = FeedAdapter(mockDataList)
-
-
-        val swipeRefreshLayout = findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(R.id.swipeRefreshLayout)
-        swipeRefreshLayout.setOnRefreshListener {
-            // 模拟真实网络请求耗时 1.5 秒
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                swipeRefreshLayout.isRefreshing = false
-                mockDataList.shuffle()
-                recyclerView.adapter?.notifyDataSetChanged()
-            }, 1500)
-        }
+        splashOverlay.postDelayed({
+            splashOverlay.animate()
+                .alpha(0f)
+                .setDuration(500)
+                .withEndAction {
+                    splashOverlay.visibility = View.GONE
+                }
+                .start()
+        }, 2000)
     }
 }

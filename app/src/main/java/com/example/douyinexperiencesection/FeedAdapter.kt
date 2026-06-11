@@ -30,6 +30,7 @@ class FeedAdapter(private val items: List<FeedItem>) :
             Glide.with(holder.itemView.context)
                 .load(currentItem.imageUrl)
                 .placeholder(android.R.color.darker_gray)
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
                 .centerCrop()
                 .into(holder.ivCover)
         } else {
