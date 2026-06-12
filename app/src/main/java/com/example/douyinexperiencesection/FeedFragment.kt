@@ -17,8 +17,13 @@ import java.io.IOException
 
 class FeedFragment : Fragment() {
 
+    private val excludedImageIds = setOf("111", "112", "131")   // 测试需要，图片解码异常，过滤
     private lateinit var feedDataList: MutableList<FeedItem>
     private lateinit var adapter: FeedAdapter
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
+    private var categoryName: String = "经验"
+    private var hasLoadedData = false
+    private var currentCall: Call? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -30,7 +35,7 @@ class FeedFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val categoryName = arguments?.getString("EXTRA_CATEGORY") ?: "经验"
+        categoryName = arguments?.getString("EXTRA_CATEGORY") ?: "经验"
         feedDataList = mutableListOf()
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.recyclerView)
@@ -40,14 +45,26 @@ class FeedFragment : Fragment() {
         adapter = FeedAdapter(feedDataList)
         recyclerView.adapter = adapter
 
-        val swipeRefreshLayout = view.findViewById<SwipeRefreshLayout>(R.id.swipeRefreshLayout)
-        
-        // 首次启动，触发远端真实数据拉取
-        fetchRealData(categoryName, swipeRefreshLayout)
+        swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout)
 
         swipeRefreshLayout.setOnRefreshListener {
+            hasLoadedData = true
             fetchRealData(categoryName, swipeRefreshLayout)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!hasLoadedData) {
+            hasLoadedData = true
+            fetchRealData(categoryName, swipeRefreshLayout)
+        }
+    }
+
+    override fun onDestroyView() {
+        currentCall?.cancel()
+        currentCall = null
+        super.onDestroyView()
     }
 
     private fun fetchRealData(categoryName: String, swipeRefreshLayout: SwipeRefreshLayout) {
@@ -64,9 +81,13 @@ class FeedFragment : Fragment() {
 
         val request = Request.Builder().url(url).build()
 
-        NetworkManager.sharedClient.newCall(request).enqueue(object : Callback {
+        currentCall?.cancel()
+        currentCall = NetworkManager.sharedClient.newCall(request)
+        currentCall?.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                if (call.isCanceled()) return
                 Handler(Looper.getMainLooper()).post {
+                    if (!isAdded || view == null) return@post
                     swipeRefreshLayout.isRefreshing = false
                     context?.let {
                         Toast.makeText(it, "网络请求失败", Toast.LENGTH_SHORT).show()
@@ -75,22 +96,26 @@ class FeedFragment : Fragment() {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                response.body?.string()?.let { jsonString ->
+                response.use { safeResponse ->
+                    val jsonString = safeResponse.body?.string() ?: return
                     try {
                         val jsonArray = JSONArray(jsonString)
                         val newList = mutableListOf<FeedItem>()
                         for (i in 0 until jsonArray.length()) {
                             val jsonObject = jsonArray.getJSONObject(i)
                             val idStr = jsonObject.getString("id")
+                            if (idStr in excludedImageIds) continue
                             val id = idStr.toIntOrNull() ?: i
                             
                             val author = jsonObject.getString("author")
                             val title = "[$categoryName] 摄影师: $author"
-                            val imageUrl = "https://picsum.photos/id/$idStr/500/500"
-                            newList.add(FeedItem(id, title, imageUrl))
+                            val thumbnailUrl = "https://picsum.photos/id/$idStr/500/500.jpg"
+                            val detailUrl = "https://picsum.photos/id/$idStr/900/1200.jpg"
+                            newList.add(FeedItem(id, title, thumbnailUrl, detailUrl))
                         }
                         
                         Handler(Looper.getMainLooper()).post {
+                            if (!isAdded || view == null) return@post
                             swipeRefreshLayout.isRefreshing = false
                             feedDataList.clear()
                             feedDataList.addAll(newList)
@@ -101,6 +126,7 @@ class FeedFragment : Fragment() {
                     } catch (e: Exception) {
                         e.printStackTrace()
                         Handler(Looper.getMainLooper()).post {
+                            if (!isAdded || view == null) return@post
                             swipeRefreshLayout.isRefreshing = false
                         }
                     }
